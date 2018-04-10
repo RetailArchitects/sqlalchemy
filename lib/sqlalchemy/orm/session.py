@@ -534,7 +534,6 @@ class Session(object):
         self._deleted = {}  # same
         self.bind = bind
         self.__binds = {}
-        self._flushing = False
         self.transaction = None
         self.hash_key = _new_sessionid()
         self.autoflush = autoflush
@@ -558,6 +557,10 @@ class Session(object):
         if not self.autocommit:
             self.begin()
         _sessions[self.hash_key] = self
+
+    _flushing = False
+
+    _get_committed = False
 
     dispatch = event.dispatcher(SessionEvents)
 
@@ -1013,6 +1016,24 @@ class Session(object):
     def _finalize_loaded(self, states):
         for state, dict_ in states.items():
             state.commit_all(dict_, self.identity_map)
+
+    @property
+    @util.contextmanager
+    def _keys_from_committed(self):
+        """Context manager that signals lazy loaders should look at the 
+        'committed' values of primary key/foreign key attributes, rather
+        than a possibly newer value not yet flushed.
+        
+        This is used within the flush process to differentiate between
+        loading collections based on the database's version
+        of identifiers versus the pending version, and is typically
+        important for when primary key values are changing.
+        
+        """
+        _get_committed = self._get_committed
+        self._get_committed = True
+        yield self
+        self._get_committed = _get_committed
 
     def refresh(self, instance, attribute_names=None, lockmode=None):
         """Expire and refresh the attributes on the given instance.

@@ -11,6 +11,7 @@ here, which assembles flush tasks based on mappers and their properties,
 organizes them in order of dependency, and executes.
 
 """
+from __future__ import with_statement
 
 from sqlalchemy import util, event
 from sqlalchemy.util import topological
@@ -162,31 +163,31 @@ class UOWTransaction(object):
         # prevents newly loaded objects from being dereferenced during the
         # flush process
 
-        if hashkey in self.attributes:
-            history, state_history, cached_passive = self.attributes[hashkey]
-            # if the cached lookup was "passive" and now 
-            # we want non-passive, do a non-passive lookup and re-cache
-            if cached_passive is not attributes.PASSIVE_OFF \
-                and passive is attributes.PASSIVE_OFF:
+        with self.session._keys_from_committed:
+            if hashkey in self.attributes:
+                history, state_history, cached_passive = self.attributes[hashkey]
+                # if the cached lookup was "passive" and now 
+                # we want non-passive, do a non-passive lookup and re-cache
+                if cached_passive is not attributes.PASSIVE_OFF \
+                    and passive is attributes.PASSIVE_OFF:
+                    impl = state.manager[key].impl
+                    history = impl.get_history(state, state.dict, 
+                                        attributes.PASSIVE_OFF)
+                    if history and impl.uses_objects:
+                        state_history = history.as_state()
+                    else:
+                        state_history = history
+                    self.attributes[hashkey] = (history, state_history, passive)
+            else:
                 impl = state.manager[key].impl
-                history = impl.get_history(state, state.dict, 
-                                    attributes.PASSIVE_OFF)
+                # TODO: store the history as (state, object) tuples
+                # so we don't have to keep converting here
+                history = impl.get_history(state, state.dict, passive)
                 if history and impl.uses_objects:
                     state_history = history.as_state()
                 else:
                     state_history = history
                 self.attributes[hashkey] = (history, state_history, passive)
-        else:
-            impl = state.manager[key].impl
-            # TODO: store the history as (state, object) tuples
-            # so we don't have to keep converting here
-            history = impl.get_history(state, state.dict, passive)
-            if history and impl.uses_objects:
-                state_history = history.as_state()
-            else:
-                state_history = history
-            self.attributes[hashkey] = (history, state_history, passive)
-
         return state_history
 
     def has_dep(self, processor):

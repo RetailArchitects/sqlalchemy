@@ -409,7 +409,7 @@ class LazyLoader(AbstractRelationshipLoader):
         # for this state.
 
         sess = sessionlib._state_session(state)
-        if sess is not None and sess._flushing:
+        if sess is not None and sess._get_committed:
             def visit_bindparam(bindparam):
                 if bindparam._identifying_key in bind_to_col:
                     bindparam.callable = \
@@ -510,7 +510,7 @@ class LazyLoader(AbstractRelationshipLoader):
     def _get_ident_for_use_get(self, session, state, passive):
         instance_mapper = state.manager.mapper
 
-        if session._flushing:
+        if session._get_committed:
             get_attr = instance_mapper._get_committed_state_attr_by_column
         else:
             get_attr = instance_mapper._get_state_attr_by_column
@@ -897,6 +897,8 @@ class SubqueryLoader(AbstractRelationshipLoader):
         # these will fire relative to subq_path.
         q = q._with_current_path(subq_path)
         q = q._conditional_options(*orig_query._with_options)
+        if orig_query._populate_existing:
+            q._populate_existing = orig_query._populate_existing
         return q
 
     def _setup_outermost_orderby(self, q):
@@ -934,7 +936,13 @@ class SubqueryLoader(AbstractRelationshipLoader):
 
         q = context.attributes[('subquery', reduced_path)]
 
-        collections = dict(
+        # cache the loaded collections in the context
+        # so that inheriting mappers don't re-load when they
+        # call upon create_row_processor again
+        if ('collections', reduced_path) in context.attributes:
+            collections = context.attributes[('collections', reduced_path)]
+        else:
+            collections = context.attributes[('collections', reduced_path)] = dict(
                     (k, [v[0] for v in v]) 
                     for k, v in itertools.groupby(
                         q, 

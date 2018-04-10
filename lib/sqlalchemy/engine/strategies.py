@@ -24,7 +24,7 @@ strategies = {}
 
 
 class EngineStrategy(object):
-    """An adaptor that processes input arguements and produces an Engine.
+    """An adaptor that processes input arguments and produces an Engine.
 
     Provides a ``create`` method that receives input arguments and
     produces an instance of base.Engine or a subclass.
@@ -41,7 +41,7 @@ class EngineStrategy(object):
 
 
 class DefaultEngineStrategy(EngineStrategy):
-    """Base class for built-in stratgies."""
+    """Base class for built-in strategies."""
 
     def create(self, name_or_url, **kwargs):
         # create url.URL object
@@ -155,6 +155,7 @@ class DefaultEngineStrategy(EngineStrategy):
                 event.listen(pool, 'first_connect', on_connect)
                 event.listen(pool, 'connect', on_connect)
 
+            @util.only_once
             def first_connect(dbapi_connection, connection_record):
                 c = base.Connection(engine, connection=dbapi_connection)
 
@@ -180,7 +181,7 @@ PlainEngineStrategy()
 
 
 class ThreadLocalEngineStrategy(DefaultEngineStrategy):
-    """Strategy for configuring an Engine with thredlocal behavior."""
+    """Strategy for configuring an Engine with threadlocal behavior."""
 
     name = 'threadlocal'
     engine_cls = threadlocal.TLEngine

@@ -442,20 +442,30 @@ class OracleCompiler(compiler.SQLCompiler):
             return compiler.SQLCompiler.visit_join(self, join, **kwargs)
         else:
             kwargs['asfrom'] = True
+            if isinstance(join.right, expression._FromGrouping):
+                right = join.right.element
+            else:
+                right = join.right
             return self.process(join.left, **kwargs) + \
-                        ", " + self.process(join.right, **kwargs)
+                        ", " + self.process(right, **kwargs)
+
 
     def _get_nonansi_join_whereclause(self, froms):
         clauses = []
 
         def visit_join(join):
             if join.isouter:
+                # https://docs.oracle.com/database/121/SQLRF/queries006.htm#SQLRF52354
+                # "apply the outer join operator (+) to all columns of B in
+                # the join condition in the WHERE clause" - that is,
+                # unconditionally regardless of operator or the other side
                 def visit_binary(binary):
-                    if binary.operator == sql_operators.eq:
-                        if binary.left.table is join.right:
-                            binary.left = _OuterJoinColumn(binary.left)
-                        elif binary.right.table is join.right:
-                            binary.right = _OuterJoinColumn(binary.right)
+                    if isinstance(binary.left, expression.ColumnClause) \
+                            and join.right.is_derived_from(binary.left.table):
+                        binary.left = _OuterJoinColumn(binary.left)
+                    elif isinstance(binary.right, expression.ColumnClause) \
+                            and join.right.is_derived_from(binary.right.table):
+                        binary.right = _OuterJoinColumn(binary.right)
                 clauses.append(visitors.cloned_traverse(join.onclause, {},
                                 {'binary':visit_binary}))
             else:
@@ -464,6 +474,8 @@ class OracleCompiler(compiler.SQLCompiler):
             for j in join.left, join.right:
                 if isinstance(j, expression.Join):
                     visit_join(j)
+                elif isinstance(j, expression._FromGrouping):
+                    visit_join(j.element)
 
         for f in froms:
             if isinstance(f, expression.Join):

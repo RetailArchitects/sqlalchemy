@@ -679,6 +679,11 @@ class Mapper(object):
                     event.listen(manager, 'load', _event_on_load, raw=True)
                 elif hasattr(method, '__sa_validators__'):
                     for name in method.__sa_validators__:
+                        if name in self.validators:
+                            raise sa_exc.InvalidRequestError(
+                                "A validation function for mapped "
+                                "attribute %r on mapper %s already exists." %
+                                (name, self))
                         self.validators = self.validators.union(
                             {name : method}
                         )
