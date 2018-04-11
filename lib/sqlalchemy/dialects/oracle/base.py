@@ -147,7 +147,7 @@ from sqlalchemy.sql import compiler, visitors, expression
 from sqlalchemy.sql import operators as sql_operators, functions as sql_functions
 from sqlalchemy import types as sqltypes
 from sqlalchemy.types import VARCHAR, NVARCHAR, CHAR, DATE, DATETIME, \
-                BLOB, CLOB, TIMESTAMP, FLOAT
+                BLOB, CLOB, TIMESTAMP, FLOAT, INTEGER
 
 RESERVED_WORDS = \
     set('SHARE RAW DROP BETWEEN FROM DESC OPTION PRIOR LONG THEN '\
@@ -899,7 +899,10 @@ class OracleDialect(default.DefaultDialect):
                 (self.normalize_name(row[0]), row[0], row[1], row[2], row[3], row[4], row[5]=='Y', row[6])
 
             if coltype == 'NUMBER' :
-                coltype = NUMBER(precision, scale)
+                if precision is None and scale == 0:
+                    coltype = INTEGER()
+                else:
+                    coltype = NUMBER(precision, scale)
             elif coltype in ('VARCHAR2', 'NVARCHAR2', 'CHAR'):
                 coltype = self.ischema_names.get(coltype)(length)
             elif 'WITH TIME ZONE' in coltype: 
