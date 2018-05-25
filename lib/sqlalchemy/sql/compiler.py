@@ -1303,12 +1303,19 @@ class SQLCompiler(engine.Compiled):
                 if sql._is_literal(value):
                     value = self._create_crud_bind_param(
                                     c, value, required=value is required)
-                elif c.primary_key and implicit_returning:
-                    self.returning.append(c)
-                    value = self.process(value.self_group())
                 else:
-                    self.postfetch.append(c)
-                    value = self.process(value.self_group())
+                    from sqlalchemy.types import NullType
+                    if isinstance(value, sql._BindParamClause) and \
+                       isinstance(value.type, NullType):
+                        value = value._clone()
+                        value.type = c.type
+
+                    if c.primary_key and implicit_returning:
+                        self.returning.append(c)
+                        value = self.process(value.self_group())
+                    else:
+                        self.postfetch.append(c)
+                        value = self.process(value.self_group())
                 values.append((c, value))
 
             elif self.isinsert:

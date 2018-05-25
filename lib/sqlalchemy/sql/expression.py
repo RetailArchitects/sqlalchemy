@@ -2061,9 +2061,7 @@ class _CompareMixin(ColumnOperators):
     def _check_literal(self, operator, other):
         if isinstance(other, _BindParamClause) and \
             isinstance(other.type, sqltypes.NullType):
-            # TODO: perhaps we should not mutate the incoming bindparam()
-            # here and instead make a copy of it.  this might
-            # be the only place that we're mutating an incoming construct.
+            other = other._clone()
             other.type = self.type
             return other
         elif hasattr(other, '__clause_element__'):
