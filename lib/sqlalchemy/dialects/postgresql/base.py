@@ -794,6 +794,13 @@ class PGDDLCompiler(compiler.DDLCompiler):
             text += " WHERE " + where_compiled
         return text
 
+    def post_create_table(self, table):
+        table_opts = []
+        if 'postgresql_on_commit' in table.kwargs:
+            on_commit_options = table.kwargs['postgresql_on_commit']
+            table_opts.append(' ON COMMIT %s' % on_commit_options) 
+        return ''.join(table_opts)
+
 
 class PGTypeCompiler(compiler.GenericTypeCompiler):
     def visit_INET(self, type_):
