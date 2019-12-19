@@ -278,6 +278,7 @@ ischema_names = {
     'FLOAT' : FLOAT,
     'DOUBLE PRECISION' : DOUBLE_PRECISION,
     'LONG' : LONG,
+    'ROWID' : ROWID,
 }
 
 
