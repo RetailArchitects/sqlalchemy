@@ -1184,7 +1184,7 @@ class Connection(Connectable):
         """
 
         if self.__transaction is None:
-            self.__transaction = RootTransaction(self)
+            self.__transaction = self.connection._reset_agent = RootTransaction(self)
             return self.__transaction
         else:
             return Transaction(self, self.__transaction)
@@ -1205,7 +1205,7 @@ class Connection(Connectable):
         """
 
         if self.__transaction is None:
-            self.__transaction = RootTransaction(self)
+            self.__transaction = self.connection._reset_agent = RootTransaction(self)
         else:
             self.__transaction = NestedTransaction(self, self.__transaction)
         return self.__transaction
@@ -1233,7 +1233,7 @@ class Connection(Connectable):
                 "is already in progress.")
         if xid is None:
             xid = self.engine.dialect.create_xid();
-        self.__transaction = TwoPhaseTransaction(self, xid)
+        self.__transaction = self.connection._reset_agent = TwoPhaseTransaction(self, xid)
         return self.__transaction
 
     def recover_twophase(self):
@@ -1272,12 +1272,12 @@ class Connection(Connectable):
                 self.engine.logger.info("ROLLBACK")
             try:
                 self.engine.dialect.do_rollback(self.connection)
-                self.__transaction = None
+                self.__transaction = self.connection._reset_agent = None
             except Exception, e:
                 self._handle_dbapi_exception(e, None, None, None, None)
                 raise
         else:
-            self.__transaction = None
+            self.__transaction = self.connection._reset_agent = None
 
     def _commit_impl(self, autocommit=False):
         if self._has_events:
@@ -1287,7 +1287,7 @@ class Connection(Connectable):
             self.engine.logger.info("COMMIT")
         try:
             self.engine.dialect.do_commit(self.connection)
-            self.__transaction = None
+            self.__transaction = self.connection._reset_agent = None
         except Exception, e:
             self._handle_dbapi_exception(e, None, None, None, None)
             raise
@@ -1341,7 +1341,7 @@ class Connection(Connectable):
         if self._still_open_and_connection_is_valid:
             assert isinstance(self.__transaction, TwoPhaseTransaction)
             self.engine.dialect.do_rollback_twophase(self, xid, is_prepared)
-        self.__transaction = None
+        self.__transaction = self.connection._reset_agent = None
 
     def _commit_twophase_impl(self, xid, is_prepared):
         if self._has_events:
@@ -1350,7 +1350,7 @@ class Connection(Connectable):
         if self._still_open_and_connection_is_valid:
             assert isinstance(self.__transaction, TwoPhaseTransaction)
             self.engine.dialect.do_commit_twophase(self, xid, is_prepared)
-        self.__transaction = None
+        self.__transaction = self.connection._reset_agent = None
 
     def _autorollback(self):
         if not self.in_transaction():

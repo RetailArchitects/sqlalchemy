@@ -364,9 +364,23 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
             if pool.dispatch.reset:
                 pool.dispatch.reset(connection, connection_record)
             if pool._reset_on_return is reset_rollback:
-                pool._dialect.do_rollback(connection)
+                if connection_record and connection_record.fairy:
+                    reset_agent = connection_record.fairy()._reset_agent
+                else:
+                    reset_agent = None
+                if reset_agent:
+                    reset_agent.rollback()
+                else:
+                    pool._dialect.do_rollback(connection)
             elif pool._reset_on_return is reset_commit:
-                pool._dialect.do_commit(connection)
+                if connection_record and connection_record.fairy:
+                    reset_agent = connection_record.fairy()._reset_agent
+                else:
+                    reset_agent = None
+                if reset_agent:
+                    reset_agent.commit()
+                else:
+                    pool._dialect.do_commit(connection)
             # Immediately close detached instances
             if connection_record is None:
                 pool._close_connection(connection)
@@ -396,9 +410,10 @@ class _ConnectionFairy(object):
 
     __slots__ = '_pool', '__counter', 'connection', \
                 '_connection_record', '__weakref__', \
-                '_detached_info', '_echo'
+                '_detached_info', '_echo', '_reset_agent'
 
     def __init__(self, pool):
+        self._reset_agent = None
         self._pool = pool
         self.__counter = 0
         self._echo = _echo = pool._should_log_debug()
