@@ -446,6 +446,17 @@ class Dialect(object):
 
         raise NotImplementedError()
 
+    def do_close(self, dbapi_connection):
+        """Provide an implementation of ``connection.close()``, given a DBAPI
+        connection.
+        This hook is called by the :class:`.Pool` when a connection has been
+        detached from the pool, or is being returned beyond the normal
+        capacity of the pool.
+        .. versionadded:: 0.8
+        """
+
+        raise NotImplementedError()
+        
     def do_savepoint(self, connection, name):
         """Create a savepoint with the given name on a SQLAlchemy
         connection."""
@@ -1173,7 +1184,7 @@ class Connection(Connectable):
         """
 
         if self.__transaction is None:
-            self.__transaction = RootTransaction(self)
+            self.__transaction = self.connection._reset_agent = RootTransaction(self)
             return self.__transaction
         else:
             return Transaction(self, self.__transaction)
@@ -1194,7 +1205,7 @@ class Connection(Connectable):
         """
 
         if self.__transaction is None:
-            self.__transaction = RootTransaction(self)
+            self.__transaction = self.connection._reset_agent = RootTransaction(self)
         else:
             self.__transaction = NestedTransaction(self, self.__transaction)
         return self.__transaction
@@ -1222,7 +1233,7 @@ class Connection(Connectable):
                 "is already in progress.")
         if xid is None:
             xid = self.engine.dialect.create_xid();
-        self.__transaction = TwoPhaseTransaction(self, xid)
+        self.__transaction = self.connection._reset_agent = TwoPhaseTransaction(self, xid)
         return self.__transaction
 
     def recover_twophase(self):
@@ -1261,14 +1272,14 @@ class Connection(Connectable):
                 self.engine.logger.info("ROLLBACK")
             try:
                 self.engine.dialect.do_rollback(self.connection)
-                self.__transaction = None
+                self.__transaction = self.connection._reset_agent = None
             except Exception, e:
                 self._handle_dbapi_exception(e, None, None, None, None)
                 raise
         else:
-            self.__transaction = None
+            self.__transaction = self.connection._reset_agent = None
 
-    def _commit_impl(self):
+    def _commit_impl(self, autocommit=False):
         if self._has_events:
             self.engine.dispatch.commit(self)
 
@@ -1276,7 +1287,7 @@ class Connection(Connectable):
             self.engine.logger.info("COMMIT")
         try:
             self.engine.dialect.do_commit(self.connection)
-            self.__transaction = None
+            self.__transaction = self.connection._reset_agent = None
         except Exception, e:
             self._handle_dbapi_exception(e, None, None, None, None)
             raise
@@ -1330,7 +1341,7 @@ class Connection(Connectable):
         if self._still_open_and_connection_is_valid:
             assert isinstance(self.__transaction, TwoPhaseTransaction)
             self.engine.dialect.do_rollback_twophase(self, xid, is_prepared)
-        self.__transaction = None
+        self.__transaction = self.connection._reset_agent = None
 
     def _commit_twophase_impl(self, xid, is_prepared):
         if self._has_events:
@@ -1339,7 +1350,7 @@ class Connection(Connectable):
         if self._still_open_and_connection_is_valid:
             assert isinstance(self.__transaction, TwoPhaseTransaction)
             self.engine.dialect.do_commit_twophase(self, xid, is_prepared)
-        self.__transaction = None
+        self.__transaction = self.connection._reset_agent = None
 
     def _autorollback(self):
         if not self.in_transaction():
@@ -1729,7 +1740,7 @@ class Connection(Connectable):
             result.close(_autoclose_connection=False)
 
         if self.__transaction is None and context.should_autocommit:
-            self._commit_impl()
+            self._commit_impl(autocommit=True)
 
         if result.closed and self.should_close_with_result:
             self.close()
@@ -2152,6 +2163,7 @@ class Engine(Connectable, log.Identified):
         self.pool = pool
         self.url = url
         self.dialect = dialect
+        self.pool._dialect = dialect
         if logging_name:
             self.logging_name = logging_name
         self.echo = echo

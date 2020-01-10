@@ -333,6 +333,27 @@ class PoolEvents(event.Events):
 
         """
 
+    def reset(self, dbapi_con, con_record):
+        """Called before the "reset" action occurs for a pooled connection.
+        This event represents
+        when the ``rollback()`` method is called on the DBAPI connection
+        before it is returned to the pool.  The behavior of "reset" can
+        be controlled, including disabled, using the ``reset_on_return``
+        pool argument.
+        The :meth:`.PoolEvents.reset` event is usually followed by the
+        the :meth:`.PoolEvents.checkin` event is called, except in those
+        cases where the connection is discarded immediately after reset.
+        :param dbapi_con:
+          A raw DB-API connection
+        :param con_record:
+          The ``_ConnectionRecord`` that persistently manages the connection
+        .. versionadded:: 0.8
+        .. seealso::
+            :meth:`.ConnectionEvents.rollback`
+            :meth:`.ConnectionEvents.commit`
+        """
+
+
 class ConnectionEvents(event.Events):
     """Available events for :class:`.Connection`.
 
