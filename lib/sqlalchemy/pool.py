@@ -310,6 +310,9 @@ class _ConnectionRecord(object):
             self.__pool._close_connection(self.connection)
 
     def invalidate(self, e=None):
+        # already invalidated
+        if self.connection is None:
+            return
         if e is not None:
             self.__pool.logger.info(
                 "Invalidate connection %r (reason: %s:%s)",

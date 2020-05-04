@@ -1278,7 +1278,8 @@ class Connection(Connectable):
                 self._handle_dbapi_exception(e, None, None, None, None)
                 raise
             finally:
-                if self.connection._reset_agent is self.__transaction:
+                if not self.__invalid and \
+                        self.connection._reset_agent is self.__transaction:
                     self.connection._reset_agent = None
                 self.__transaction = None
         else:
@@ -1296,7 +1297,8 @@ class Connection(Connectable):
             self._handle_dbapi_exception(e, None, None, None, None)
             raise
         finally:
-            if self.connection._reset_agent is self.__transaction:
+            if not self.__invalid and \
+                    self.connection._reset_agent is self.__transaction:
                 self.connection._reset_agent = None
             self.__transaction = None
 
@@ -1409,7 +1411,12 @@ class Connection(Connectable):
                 conn.close()
             if conn._reset_agent is self.__transaction:
                 conn._reset_agent = None
-            del self.__connection
+
+            # the close() process can end up invalidating us,
+            # as the pool will call our transaction as the "reset_agent"
+            # for rollback(), which can then cause an invalidation
+            if not self.__invalid:
+                del self.__connection
         self.__can_reconnect = False
         self.__transaction = None
 
