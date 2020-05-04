@@ -1233,7 +1233,7 @@ class Connection(Connectable):
                 "Cannot start a two phase transaction when a transaction "
                 "is already in progress.")
         if xid is None:
-            xid = self.engine.dialect.create_xid();
+            xid = self.engine.dialect.create_xid()
         self.__transaction = self.connection._reset_agent = TwoPhaseTransaction(self, xid)
         return self.__transaction
 
@@ -1260,7 +1260,7 @@ class Connection(Connectable):
 
         try:
             self.engine.dialect.do_begin(self.connection)
-        except Exception, e:
+        except Exception as e:
             self._handle_dbapi_exception(e, None, None, None, None)
             raise
 
@@ -1274,7 +1274,7 @@ class Connection(Connectable):
             try:
                 self.engine.dialect.do_rollback(self.connection)
                 self.__transaction = self.connection._reset_agent = None
-            except Exception, e:
+            except Exception as e:
                 self._handle_dbapi_exception(e, None, None, None, None)
                 raise
         else:
@@ -1289,7 +1289,7 @@ class Connection(Connectable):
         try:
             self.engine.dialect.do_commit(self.connection)
             self.__transaction = self.connection._reset_agent = None
-        except Exception, e:
+        except Exception as e:
             self._handle_dbapi_exception(e, None, None, None, None)
             raise
 
@@ -1520,7 +1520,7 @@ class Connection(Connectable):
             dialect = self.dialect
             ctx = dialect.execution_ctx_cls._init_default(
                                 dialect, self, conn)
-        except Exception, e:
+        except Exception as e:
             self._handle_dbapi_exception(e, None, None, None, None)
             raise
 
@@ -1656,7 +1656,7 @@ class Connection(Connectable):
                 conn = self._revalidate_connection()
 
             context = constructor(dialect, self, conn, *args)
-        except Exception, e:
+        except Exception as e:
             self._handle_dbapi_exception(e, 
                         str(statement), parameters, 
                         None, None)
@@ -1700,7 +1700,7 @@ class Connection(Connectable):
                                     statement, 
                                     parameters, 
                                     context)
-        except Exception, e:
+        except Exception as e:
             self._handle_dbapi_exception(
                                 e, 
                                 statement, 
@@ -1767,7 +1767,7 @@ class Connection(Connectable):
                                 cursor, 
                                 statement, 
                                 parameters)
-        except Exception, e:
+        except Exception as e:
             self._handle_dbapi_exception(
                                 e, 
                                 statement, 
@@ -1783,7 +1783,7 @@ class Connection(Connectable):
         """
         try:
             cursor.close()
-        except Exception, e:
+        except Exception as e:
             try:
                 ex_text = str(e)
             except TypeError:
@@ -2947,7 +2947,7 @@ class ResultProxy(object):
         """
         try:
             return self.context.rowcount
-        except Exception, e:
+        except Exception as e:
             self.connection._handle_dbapi_exception(
                               e, None, None, self.cursor, self.context)
             raise
@@ -2969,7 +2969,7 @@ class ResultProxy(object):
         """
         try:
             return self._saved_cursor.lastrowid
-        except Exception, e:
+        except Exception as e:
             self.connection._handle_dbapi_exception(
                                  e, None, None, 
                                  self._saved_cursor, self.context)
@@ -3184,7 +3184,7 @@ class ResultProxy(object):
             l = self.process_rows(self._fetchall_impl())
             self.close()
             return l
-        except Exception, e:
+        except Exception as e:
             self.connection._handle_dbapi_exception(
                                     e, None, None, 
                                     self.cursor, self.context)
@@ -3204,7 +3204,7 @@ class ResultProxy(object):
             if len(l) == 0:
                 self.close()
             return l
-        except Exception, e:
+        except Exception as e:
             self.connection._handle_dbapi_exception(
                                     e, None, None, 
                                     self.cursor, self.context)
@@ -3224,7 +3224,7 @@ class ResultProxy(object):
             else:
                 self.close()
                 return None
-        except Exception, e:
+        except Exception as e:
             self.connection._handle_dbapi_exception(
                                     e, None, None, 
                                     self.cursor, self.context)
@@ -3241,7 +3241,7 @@ class ResultProxy(object):
 
         try:
             row = self._fetchone_impl()
-        except Exception, e:
+        except Exception as e:
             self.connection._handle_dbapi_exception(
                                     e, None, None, 
                                     self.cursor, self.context)
