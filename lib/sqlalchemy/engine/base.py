@@ -1792,20 +1792,20 @@ class Connection(Connectable):
             if isinstance(e, (SystemExit, KeyboardInterrupt)):
                 raise
 
-    def _handle_dbapi_exception(self, 
-                                    e, 
-                                    statement, 
-                                    parameters, 
-                                    cursor, 
+    def _handle_dbapi_exception(self,
+                                    e,
+                                    statement,
+                                    parameters,
+                                    cursor,
                                     context):
         if getattr(self, '_reentrant_error', False):
             # Py3K
-            #raise exc.DBAPIError.instance(statement, parameters, e, 
+            #raise exc.DBAPIError.instance(statement, parameters, e,
             #                               self.dialect.dbapi.Error) from e
             # Py2K
-            raise exc.DBAPIError.instance(statement, 
-                                            parameters, 
-                                            e, 
+            raise exc.DBAPIError.instance(statement,
+                                            parameters,
+                                            e,
                                             self.dialect.dbapi.Error), \
                                             None, sys.exc_info()[2]
             # end Py2K
