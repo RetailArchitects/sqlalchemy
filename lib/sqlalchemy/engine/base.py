@@ -1820,7 +1820,8 @@ class Connection(Connectable):
                 context.handle_dbapi_exception(e)
 
             is_disconnect = isinstance(e, self.dialect.dbapi.Error) and \
-                                self.dialect.is_disconnect(e, self.__connection, cursor)
+                self.dialect.is_disconnect(e, self.__connection, cursor)
+
             if is_disconnect:
                 self.invalidate(e)
                 self.engine.dispose()
