@@ -369,9 +369,10 @@ class PGDialect_psycopg2(PGDialect):
     def is_disconnect(self, e, connection, cursor):
         if isinstance(e, self.dbapi.OperationalError):
             # these error messages from libpq: interfaces/libpq/fe-misc.c.
-            # TODO: these are sent through gettext in libpq and we can't 
-            # check within other locales - consider using connection.closed 
-            return 'closed the connection' in str(e) or \
+            # TODO: these are sent through gettext in libpq and we can't
+            # check within other locales - consider using connection.closed
+            return 'terminating connection' in str(e) or \
+                    'closed the connection' in str(e) or \
                     'connection not open' in str(e) or \
                     'could not receive data from server' in str(e)
         elif isinstance(e, self.dbapi.InterfaceError):
