@@ -1313,6 +1313,17 @@ class Connection(Connectable):
             self.engine.dialect.do_savepoint(self, name)
             return name
 
+    def _discard_transaction(self, trans):
+        if trans is self.__transaction:
+            if trans._parent is trans:
+                self.__transaction = None
+            else:
+                self.__transaction = trans._parent
+
+        if self._still_open_and_connection_is_valid:
+            if self.__connection._reset_agent is trans:
+                self.__connection._reset_agent = None
+
     def _rollback_to_savepoint_impl(self, name, context):
         if self._has_events:
             self.engine.dispatch.rollback_savepoint(self, name, context)
@@ -2067,19 +2078,17 @@ class Transaction(object):
         an enclosing transaction.
 
         """
-        if not self._parent.is_active:
-            return
-        if self._parent is self:
+        if self._parent.is_active and self._parent is self:
             self.rollback()
+        self.connection._discard_transaction(self)
 
     def rollback(self):
         """Roll back this :class:`.Transaction`.
 
         """
-        if not self._parent.is_active:
-            return
-        self._do_rollback()
-        self.is_active = False
+        if self._parent.is_active:
+            self._do_rollback()
+            self.is_active = False
 
     def _do_rollback(self):
         self._parent.rollback()

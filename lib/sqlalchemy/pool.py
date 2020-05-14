@@ -372,7 +372,15 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
                 else:
                     reset_agent = None
                 if reset_agent:
-                    reset_agent.rollback()
+                    if not reset_agent.is_active:
+                        pool._dialect.do_rollback(connection)
+                        util.warn(
+                            "Reset agent is not active.  "
+                            "This should not occur unless there was already "
+                            "a connectivity error in progress."
+                        )
+                    else:
+                        reset_agent.rollback()
                 else:
                     pool._dialect.do_rollback(connection)
             elif pool._reset_on_return is reset_commit:
@@ -381,7 +389,15 @@ def _finalize_fairy(connection, connection_record, pool, ref, echo):
                 else:
                     reset_agent = None
                 if reset_agent:
-                    reset_agent.commit()
+                    if not reset_agent.is_active:
+                        util.warn(
+                            "Reset agent is not active.  "
+                            "This should not occur unless there was already "
+                            "a connectivity error in progress."
+                        )
+                        pool._dialect.do_commit(connection)
+                    else:
+                        reset_agent.commit()
                 else:
                     pool._dialect.do_commit(connection)
             # Immediately close detached instances
