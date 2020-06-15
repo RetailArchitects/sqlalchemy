@@ -382,7 +382,8 @@ class SQLCompiler(engine.Compiled):
                                     within_columns_clause=False, 
                                     **kw)
 
-    def visit_column(self, column, result_map=None, **kwargs):
+    def visit_column(self, column, result_map=None,
+                                    include_table=True, **kwargs):
         name = orig_name = column.name
         if name is None:
             raise exc.CompileError("Cannot compile Column object until "
@@ -403,7 +404,7 @@ class SQLCompiler(engine.Compiled):
             name = self.preparer.quote(name, column.quote)
 
         table = column.table
-        if table is None or not table.named_with_column:
+        if table is None or not include_table or not table.named_with_column:
             return name
         else:
             if table.schema:
@@ -1584,39 +1585,64 @@ class DDLCompiler(engine.Compiled):
     def visit_drop_table(self, drop):
         return "\nDROP TABLE " + self.preparer.format_table(drop.element)
 
-    def _index_identifier(self, ident):
-        if isinstance(ident, sql._truncated_label):
-            max = self.dialect.max_index_name_length or \
-                        self.dialect.max_identifier_length
-            if len(ident) > max:
-                return ident[0:max - 8] + \
-                                "_" + util.md5_hex(ident)[-4:]
-            else:
-                return ident
-        else:
-            self.dialect.validate_identifier(ident)
-            return ident
+    def _verify_index_table(self, index):
+        if index.table is None:
+            raise exc.CompileError("Index '%s' is not associated "
+                            "with any table." % index.name)
 
     def visit_create_index(self, create):
         index = create.element
+        self._verify_index_table(index)
         preparer = self.preparer
         text = "CREATE "
         if index.unique:
             text += "UNIQUE "
         text += "INDEX %s ON %s (%s)" \
-                    % (preparer.quote(self._index_identifier(index.name), 
-                        index.quote),
+                    % (
+                        self._prepared_index_name(index,
+                                # kb patch note: I don't think we want
+                                # https://github.com/sqlalchemy/sqlalchemy/commit/bba1d01b26adb2db5b3c3fc41b94834cec5c73fc
+                                # for Loft!
+                                include_schema=False),
                        preparer.format_table(index.table),
-                       ', '.join(preparer.quote(c.name, c.quote)
-                                 for c in index.columns))
+                       ', '.join(
+                            self.sql_compiler.process(expr,
+                                include_table=False) for
+                                expr in index.expressions)
+                        )
         return text
 
     def visit_drop_index(self, drop):
         index = drop.element
-        return "\nDROP INDEX " + \
-                    self.preparer.quote(
-                            self._index_identifier(index.name), index.quote)
+        return "\nDROP INDEX " + self._prepared_index_name(index,
+                                        include_schema=True)
 
+    def _prepared_index_name(self, index, include_schema=False):
+        if include_schema and index.table is not None and index.table.schema:
+            schema = index.table.schema
+            schema_name = self.preparer.quote_schema(schema,
+                                index.table.quote_schema)
+        else:
+            schema_name = None
+
+        ident = index.name
+        if isinstance(ident, sql._truncated_label):
+            max_ = self.dialect.max_index_name_length or \
+                        self.dialect.max_identifier_length
+            if len(ident) > max_:
+                ident = ident[0:max_ - 8] + \
+                                "_" + util.md5_hex(ident)[-4:]
+        else:
+            self.dialect.validate_identifier(ident)
+
+        index_name = self.preparer.quote(
+                                    ident,
+                                    index.quote)
+
+        if schema_name:
+            index_name = schema_name + "." + index_name
+        return index_name
+        
     def visit_add_constraint(self, create):
         preparer = self.preparer
         return "ALTER TABLE %s ADD %s" % (
