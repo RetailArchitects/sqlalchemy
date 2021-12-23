@@ -1298,6 +1298,7 @@ class Connection(Connectable):
             raise
         finally:
             if not self.__invalid and \
+                    hasattr(self.connection, '_reset_agent') and \
                     self.connection._reset_agent is self.__transaction:
                 self.connection._reset_agent = None
             self.__transaction = None
